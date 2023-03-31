@@ -8,7 +8,17 @@ const User = require("../models/User");
 
 router.get("/get", fetchuser, async (req, res) => {
   try {
+    console.log("getStocks");
     const stocks = await Stock.find({ user: req.user.id });
+    res.json({ stocks });
+  } catch (error) {
+    res.send({ error: error.message });
+  }
+});
+
+router.post("/getbytype", fetchuser, async (req, res) => {
+  try {
+    const stocks = await Stock.find({ user: req.user.id, type: req.body.type });
     res.json({ stocks });
   } catch (error) {
     res.send({ error });
@@ -16,6 +26,7 @@ router.get("/get", fetchuser, async (req, res) => {
 });
 
 router.post("/buy", fetchuser, async (req, res) => {
+  let success = false;
   try {
     const userid = req.user.id;
     console.log(userid);
@@ -23,11 +34,11 @@ router.post("/buy", fetchuser, async (req, res) => {
     console.log(user);
     const amount = user.amount;
     console.log(amount);
-    const number = req.body.number;
+    const number = parseFloat(req.body.number);
     console.log(typeof req.body.number);
     const price = req.body.price;
     if (amount < number * price) {
-      return res.send({ message: "Insufficient Balance" });
+      return res.json({ message: "Insufficient Balance" });
     }
     let stock = await Stock.findOne({
       user: userid,
@@ -37,12 +48,13 @@ router.post("/buy", fetchuser, async (req, res) => {
     if (stock != null) {
       const id = stock._id;
       user = await User.findByIdAndUpdate(userid, {
-        amount: eval(user.amount - price * number),
+        amount: user.amount - price * number,
       });
       stock = await Stock.findByIdAndUpdate(id, {
-        number: eval(number + stock.number),
+        number: number + stock.number,
       });
-      return res.send(stock);
+      stock = await Stock.findById(id);
+      return res.json({ message: "Bought SuccessFully" });
     }
     stock = await Stock.create({
       user: userid,
@@ -52,16 +64,23 @@ router.post("/buy", fetchuser, async (req, res) => {
       price: price,
     });
     user = await User.findByIdAndUpdate(userid, {
-      amount: eval(user.amount - price * number),
+      amount: user.amount - price * number,
     });
+    stock = await Stock.findOne({
+      user: userid,
+      type: req.body.type,
+      company: req.body.company,
+    });
+    success = true;
     console.log(user);
-    res.send(stock);
+    res.json({ message: "Bought SuccessFully" });
   } catch (error) {
-    res.send({ error: error.message });
+    res.json({ message: "Error Occurred" });
   }
 });
 
 router.post("/sell", fetchuser, async (req, res) => {
+  let success = false;
   try {
     const userid = req.user.id;
     console.log(userid);
@@ -69,28 +88,35 @@ router.post("/sell", fetchuser, async (req, res) => {
     console.log(user);
     const amount = user.amount;
     console.log(amount);
-    const number = req.body.number;
+    const number = parseFloat(req.body.number);
     const price = req.body.price;
     let stock = await Stock.findOne({
       user: userid,
       type: req.body.type,
       company: req.body.company,
     });
-      if (stock != null) {
-          if (stock.number < number)
-          {
-             return res.send({ error: "Not able to sell" });
-            }
+    if (stock != null) {
+      console.log(stock.number);
+      if (stock.number < number) {
+        return res.json({ message: "Not Able to sell" });
+      }
       user = await User.findByIdAndUpdate(userid, {
-        amount: eval(user.amount + price * number),
+        amount: user.amount + price * number,
       });
       const id = stock._id;
+      if (stock.number === number) {
+        stock = await Stock.findByIdAndDelete(id);
+        success = true;
+        return res.json({ message: "Sold SuccessFully" });
+      }
       stock = await Stock.findByIdAndUpdate(id, {
-        number: eval(stock.number-number),
+        number: stock.number - number,
       });
-      return res.send(stock);
+      stock = await Stock.findById(id);
+      success = true;
+      return res.send(success);
     } else {
-      res.status(401).send({ error: "Not able to send" });
+      res.status(401).json({ message: "Error Occurred" });
     }
 
     // user = await User.findByIdAndUpdate(userid, {
@@ -99,7 +125,7 @@ router.post("/sell", fetchuser, async (req, res) => {
     // console.log(user);
     // res.send(stock);
   } catch (error) {
-    res.send({ error: error.message });
+    res.json({ message: "Error Occurred" });
   }
 });
 

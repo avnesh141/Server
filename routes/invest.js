@@ -95,6 +95,7 @@ router.post("/sell", fetchuser, async (req, res) => {
       type: req.body.type,
       company: req.body.company,
     });
+    console.log(stock);
     if (stock != null) {
       console.log(stock.number);
       if (stock.number < number) {
@@ -114,9 +115,9 @@ router.post("/sell", fetchuser, async (req, res) => {
       });
       stock = await Stock.findById(id);
       success = true;
-      return res.send(success);
+      return res.json({ message: "Sold SuccessFully" });
     } else {
-      res.status(401).json({ message: "Error Occurred" });
+      res.status(200).json({ message: "Not Able to sell" });
     }
 
     // user = await User.findByIdAndUpdate(userid, {
